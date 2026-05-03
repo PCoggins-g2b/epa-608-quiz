@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EPA 608 Web Quiz System</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --navy: #0f172a;
+      --slate: #475569;
+      --border: #cbd5e1;
+      --blue: #2563eb;
+      --green: #16a34a;
+      --red: #dc2626;
+      --light-green: #dcfce7;
+      --light-red: #fee2e2;
+      --amber: #f59e0b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--navy);
+    }
+
+    .app {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    header {
+      background: var(--navy);
+      color: white;
+      border-radius: 18px;
+      padding: 22px;
+      margin-bottom: 18px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    }
+
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+    }
+
+    header p { margin: 0; color: #dbeafe; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+    }
+
+    .stat .label {
+      color: var(--slate);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+
+    .stat .value {
+      font-weight: 700;
+      font-size: 22px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .section-pill {
+      display: inline-block;
+      background: #dbeafe;
+      color: #1e40af;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      margin: 0 0 18px;
+      font-size: 25px;
+      line-height: 1.25;
+    }
+
+    .answers {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .answer {
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      background: white;
+      cursor: pointer;
+      font-size: 17px;
+      text-align: left;
+      transition: 0.15s ease;
+    }
+
+    .answer:hover {
+      border-color: var(--blue);
+      transform: translateY(-1px);
+    }
+
+    .answer.selected {
+      border-color: var(--blue);
+      background: #eff6ff;
+      font-weight: 700;
+    }
+
+    .answer.correct {
+      border-color: var(--green);
+      background: var(--light-green);
+    }
+
+    .answer.incorrect {
+      border-color: var(--red);
+      background: var(--light-red);
+    }
+
+    .feedback {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 14px;
+      display: none;
+    }
+
+    .feedback.show { display: block; }
+    .feedback.good { background: var(--light-green); border: 1px solid #86efac; }
+    .feedback.bad { background: var(--light-red); border: 1px solid #fca5a5; }
+
+    .nav {
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 22px;
+    }
+
+    .nav-left, .nav-right {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 11px 15px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn-primary { background: var(--blue); color: white; }
+    .btn-prev { background: #fca5a5; color: white; }
+    .btn-next { background: #86efac; color: white; }
+    .btn-secondary { background: #e2e8f0; color: var(--navy); }
+    .btn-danger { background: var(--red); color: white; }
+    .btn-success { background: var(--green); color: white; }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .progress-bar {
+      height: 10px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 16px 0 0;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--blue);
+      width: 0%;
+      transition: width 0.2s ease;
+    }
+
+    .results {
+      display: none;
+    }
+
+    .results.show { display: block; }
+
+    .result-banner {
+      border-radius: 18px;
+      padding: 22px;
+      margin-bottom: 18px;
+      color: white;
+    }
+
+    .result-banner.pass { background: var(--green); }
+    .result-banner.fail { background: var(--red); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th { background: var(--navy); color: white; }
+
+    .hidden { display: none; }
+
+    .mode-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .small-note {
+      color: var(--slate);
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 760px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      h2 { font-size: 21px; }
+      .nav { flex-direction: column; align-items: stretch; }
+      .nav-left, .nav-right { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>EPA 608 Web Quiz System</h1>
+      <p>Live tally, Previous / Next navigation, Core 85% pass rule, and missed-question review.</p>
+      <div class="mode-row">
+        <button class="btn-primary" onclick="startQuiz('all')">Start Full Exam</button>
+        <button class="btn-secondary" onclick="startQuiz('Core')">Core Only</button>
+        <button class="btn-secondary" onclick="startQuiz('Type I')">Type I</button>
+        <button class="btn-secondary" onclick="startQuiz('Type II')">Type II</button>
+        <button class="btn-secondary" onclick="startQuiz('Type III')">Type III</button>
+      </div>
+      <div class="small-note">Study Mode: feedback appears immediately after each answer. We can add a “true exam mode” toggle later.</div>
+    </header>
+
+    <section class="stats">
+      <div class="stat"><div class="label">Answered</div><div class="value" id="answeredStat">0/0</div></div>
+      <div class="stat"><div class="label">Overall</div><div class="value" id="overallStat">0%</div></div>
+      <div class="stat"><div class="label">Core</div><div class="value" id="coreStat">0%</div></div>
+      <div class="stat"><div class="label">Status</div><div class="value" id="statusStat">Start</div></div>
+    </section>
+
+    <main id="quizCard" class="card">
+      <span class="section-pill" id="sectionLabel">Ready</span>
+      <h2 id="questionText">Choose a mode above to begin.</h2>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="answers" id="answers"></div>
+      <div id="feedback" class="feedback"></div>
+      <div class="nav">
+        <div class="nav-left">
+          <button class="btn-prev" id="prevBtn" onclick="prevQuestion()" disabled>PREV</button>
+          <button class="btn-next" id="nextBtn" onclick="nextQuestion()" disabled>NEXT</button>
+        </div>
+        <div class="nav-right">
+          <button class="btn-secondary" onclick="showMissedOnly()">Review Missed</button>
+          <button class="btn-success" onclick="finishQuiz()">Finish / Score</button>
+          <button class="btn-danger" onclick="resetQuiz()">Reset</button>
+        </div>
+      </div>
+    </main>
+
+    <section id="results" class="results card" style="margin-top:18px;"></section>
+  </div>
+
+  <script>
+    const QUESTION_BANK = [
+      { section: 'Core', q: 'When transporting cylinders containing used refrigerant, DOT requires that you:', a: ['Use approved containers','Attach DOT classification tags','Use proper certified handling/transport procedures','Do all of the above'], c: 3, e: 'Transport questions test full compliance. If all safety/legal steps are true, choose all of the above.' },
+      { section: 'Core', q: 'Which process cleans refrigerant for immediate reuse by oil separation and filtering?', a: ['Recycling','Recovering','Reclaiming','Restoring'], c: 0, e: 'Recycle = clean for reuse. Recover = remove. Reclaim = restore to new-product standard.' },
+      { section: 'Core', q: 'Which refrigerant contains chlorine?', a: ['R-22','R-134a','R-410A','R-1234yf'], c: 0, e: 'R-22 is an HCFC. HCFCs contain chlorine and can damage ozone.' },
+      { section: 'Core', q: 'Refrigerant cylinders should be all of the following EXCEPT:', a: ['Free of rust and damage','Filled to 95% capacity','Properly labeled','Secured'], c: 1, e: 'The high-yield rule is the 80% fill rule, not 95%.' },
+      { section: 'Core', q: 'How should refrigerant blends generally be charged?', a: ['As vapor','At very high temperatures','As liquid','The same as any refrigerant'], c: 2, e: 'Blends are charged as liquid to prevent fractionation.' },
+      { section: 'Core', q: 'Which process returns refrigerant to new product specifications and requires chemical analysis?', a: ['Recovery','Recycle','Reprocess','Reclaim'], c: 3, e: 'Reclaiming restores refrigerant to new-product specifications.' },
+      { section: 'Core', q: 'Which refrigerant type generally has the highest ozone depletion potential?', a: ['HCFCs','HFCs','CFCs','HFOs'], c: 2, e: 'CFCs have the highest ODP because they contain chlorine and are very stable.' },
+      { section: 'Core', q: 'HFC refrigerants contain:', a: ['Chlorine, fluorine, carbon','Chlorine, fluorine, hydrogen','Hydrogen, chlorine, carbon','Hydrogen, fluorine, carbon'], c: 3, e: 'HFC = hydrofluorocarbon: hydrogen, fluorine, carbon. No chlorine.' },
+      { section: 'Core', q: 'Most effective method for locating a small refrigerant leak:', a: ['Standing vacuum test','Electronic/ultrasonic detector','Halide torch','Audible sound'], c: 1, e: 'Small leaks usually require electronic or ultrasonic detection.' },
+      { section: 'Core', q: 'Before opening a refrigeration system for service, the technician should:', a: ['Vent the refrigerant','Recover the refrigerant','Add refrigerant','Bypass the thermostat'], c: 1, e: 'Recover first. Opening a charged system can release refrigerant illegally.' },
+
+      { section: 'Type I', q: 'Type I certification covers primarily:', a: ['Small appliances','Low-pressure chillers','Motor vehicle AC only','Industrial ammonia systems'], c: 0, e: 'Type I is for small appliances, generally 5 lb or less refrigerant.' },
+      { section: 'Type I', q: 'A small appliance generally contains:', a: ['2 lb or less','5 lb or less','10 lb or less','20 lb or less'], c: 1, e: 'Small appliance = 5 lb or less.' },
+      { section: 'Type I', q: 'A passive recovery device relies on:', a: ['The system compressor','Pressure difference and temperature','A vacuum pump only','Combustion heat'], c: 1, e: 'Passive recovery uses pressure and temperature differences.' },
+      { section: 'Type I', q: 'An active recovery device uses:', a: ['A pump or compressor','Only gravity','Only the appliance motor','Only a filter drier'], c: 0, e: 'Active recovery uses a compressor or pump.' },
+
+      { section: 'Type II', q: 'Type II certification covers:', a: ['High-pressure and very-high-pressure appliances','Low-pressure chillers only','MVAC only','Small appliances only'], c: 0, e: 'Type II covers high-pressure systems like most residential split systems.' },
+      { section: 'Type II', q: 'R-410A is classified as:', a: ['Low-pressure refrigerant','High-pressure refrigerant','Vacuum-only refrigerant','Non-refrigerant'], c: 1, e: 'R-410A operates at high pressures.' },
+      { section: 'Type II', q: 'If the outdoor condenser fan fails while compressor runs, the technician should:', a: ['Let it run','Shut system down','Add refrigerant','Close all vents'], c: 1, e: 'No condenser fan can cause high head pressure and compressor damage.' },
+      { section: 'Type II', q: 'For pressure testing, use:', a: ['Oxygen','Dry nitrogen with regulator','Compressed air with oil','Propane'], c: 1, e: 'Use dry nitrogen with a regulator. Never oxygen.' },
+
+      { section: 'Type III', q: 'Type III certification covers:', a: ['Low-pressure appliances','Small appliances only','Motor vehicles only','Residential high-pressure only'], c: 0, e: 'Type III covers low-pressure appliances like many chillers.' },
+      { section: 'Type III', q: 'A purge unit removes:', a: ['Non-condensables','Compressor oil only','Liquid refrigerant only','Duct dust'], c: 0, e: 'Purge units remove air and non-condensables.' },
+      { section: 'Type III', q: 'Low-pressure systems can draw in air because they may operate:', a: ['Below atmospheric pressure','Only above 500 psi','Only outdoors','Without refrigerant'], c: 0, e: 'Below-atmospheric operation can pull air inward through leaks.' }
+    ];
+
+    const OVERALL_PASS = 75;
+    const CORE_PASS = 85;
+
+    let activeQuestions = [];
+    let currentIndex = 0;
+    let answers = {};
+
+    function startQuiz(mode) {
+      activeQuestions = mode === 'all' ? [...QUESTION_BANK] : QUESTION_BANK.filter(q => q.section === mode);
+      currentIndex = 0;
+      answers = {};
+      document.getElementById('results').classList.remove('show');
+      renderQuestion();
+      updateStats();
+    }
+
+    function renderQuestion() {
+      if (!activeQuestions.length) return;
+      const q = activeQuestions[currentIndex];
+      const selected = answers[currentIndex];
+
+      document.getElementById('sectionLabel').textContent = `${q.section} • Question ${currentIndex + 1} of ${activeQuestions.length}`;
+      document.getElementById('questionText').textContent = q.q;
+      document.getElementById('progressFill').style.width = `${((currentIndex + 1) / activeQuestions.length) * 100}%`;
+
+      const answerBox = document.getElementById('answers');
+      answerBox.innerHTML = '';
+      q.a.forEach((text, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'answer';
+        btn.textContent = `${String.fromCharCode(65 + idx)}. ${text}`;
+        btn.onclick = () => selectAnswer(idx);
+
+        if (selected !== undefined) {
+          if (idx === q.c) btn.classList.add('correct');
+          if (idx === selected && idx !== q.c) btn.classList.add('incorrect');
+          if (idx === selected) btn.classList.add('selected');
+        }
+        answerBox.appendChild(btn);
+      });
+
+      const feedback = document.getElementById('feedback');
+      feedback.className = 'feedback';
+      feedback.innerHTML = '';
+      if (selected !== undefined) {
+        const correct = selected === q.c;
+        feedback.classList.add('show', correct ? 'good' : 'bad');
+        feedback.innerHTML = `<strong>${correct ? 'Correct' : 'Not quite'}.</strong><br>${q.e}<br><br><strong>Correct answer:</strong> ${String.fromCharCode(65 + q.c)}. ${q.a[q.c]}`;
+      }
+
+      document.getElementById('prevBtn').disabled = currentIndex === 0;
+      document.getElementById('nextBtn').disabled = currentIndex === activeQuestions.length - 1;
+      updateStats();
+    }
+
+    function selectAnswer(idx) {
+      answers[currentIndex] = idx;
+      renderQuestion();
+    }
+
+    function prevQuestion() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        renderQuestion();
+      }
+    }
+
+    function nextQuestion() {
+      if (currentIndex < activeQuestions.length - 1) {
+        currentIndex++;
+        renderQuestion();
+      }
+    }
+
+    function computeScore() {
+      let answered = 0, correct = 0, coreAnswered = 0, coreCorrect = 0;
+      const missed = [];
+
+      activeQuestions.forEach((q, idx) => {
+        if (answers[idx] !== undefined) {
+          answered++;
+          if (q.section === 'Core') coreAnswered++;
+          if (answers[idx] === q.c) {
+            correct++;
+            if (q.section === 'Core') coreCorrect++;
+          } else {
+            missed.push({ index: idx, q, selected: answers[idx] });
+          }
+        }
+      });
+
+      const overallPct = answered ? Math.round((correct / answered) * 1000) / 10 : 0;
+      const corePct = coreAnswered ? Math.round((coreCorrect / coreAnswered) * 1000) / 10 : 0;
+      return { answered, correct, overallPct, coreAnswered, coreCorrect, corePct, missed };
+    }
+
+    function updateStats() {
+      const s = computeScore();
+      document.getElementById('answeredStat').textContent = `${s.answered}/${activeQuestions.length || 0}`;
+      document.getElementById('overallStat').textContent = `${s.overallPct}%`;
+      document.getElementById('coreStat').textContent = s.coreAnswered ? `${s.corePct}%` : 'N/A';
+      const pass = s.overallPct >= OVERALL_PASS && (!s.coreAnswered || s.corePct >= CORE_PASS);
+      document.getElementById('statusStat').textContent = s.answered ? (pass ? 'Passing' : 'Study') : 'Start';
+    }
+
+    function finishQuiz() {
+      const s = computeScore();
+      const allAnswered = s.answered === activeQuestions.length;
+      const pass = allAnswered && s.overallPct >= OVERALL_PASS && (!s.coreAnswered || s.corePct >= CORE_PASS);
+      const results = document.getElementById('results');
+      results.classList.add('show');
+      results.innerHTML = `
+        <div class="result-banner ${pass ? 'pass' : 'fail'}">
+          <h2>${pass ? 'Congratulations — you passed.' : 'Great try — keep studying and practicing.'}</h2>
+          <p>Overall: ${s.overallPct}% | Core: ${s.coreAnswered ? s.corePct + '%' : 'N/A'} | Answered: ${s.answered}/${activeQuestions.length}</p>
+        </div>
+        <h3>Missed Question Review</h3>
+        ${s.missed.length ? buildMissedTable(s.missed) : '<p>No missed questions. Excellent work.</p>'}
+      `;
+      results.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function buildMissedTable(missed) {
+      const rows = missed.map(m => `
+        <tr>
+          <td>${m.index + 1}</td>
+          <td>${m.q.section}</td>
+          <td>${m.q.q}</td>
+          <td>${String.fromCharCode(65 + m.selected)}. ${m.q.a[m.selected]}</td>
+          <td>${String.fromCharCode(65 + m.q.c)}. ${m.q.a[m.q.c]}</td>
+          <td>${m.q.e}</td>
+        </tr>
+      `).join('');
+      return `<table><thead><tr><th>#</th><th>Section</th><th>Question</th><th>Your Answer</th><th>Correct</th><th>Explanation</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    function showMissedOnly() {
+      const s = computeScore();
+      if (!s.missed.length) {
+        alert('No missed questions yet.');
+        return;
+      }
+      activeQuestions = s.missed.map(m => m.q);
+      currentIndex = 0;
+      answers = {};
+      document.getElementById('results').classList.remove('show');
+      renderQuestion();
+    }
+
+    function resetQuiz() {
+      answers = {};
+      currentIndex = 0;
+      document.getElementById('results').classList.remove('show');
+      renderQuestion();
+    }
+  </script>
+</body>
+</html>
