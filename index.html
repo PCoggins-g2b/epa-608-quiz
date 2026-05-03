@@ -1,0 +1,455 @@
+
+/**
+ * EPA 608 Dashboard Upgrade
+ *
+ * Adds / rebuilds a stronger Dashboard and Response Tally tabs.
+ *
+ * Use:
+ * 1. Add this as a new Apps Script file, for example dashboard_upgrade.gs
+ * 2. Paste your Results Sheet ID into EPA608_RESULTS_SHEET_ID below
+ * 3. Save
+ * 4. Run upgradeEPA608Dashboard
+ */
+
+/***** CONFIG SECTION *****/
+var EPA608_RESULTS_SHEET_ID = '1ZLGkvgLT-GIQcxjC4pu4t9XqyFgVHpVw3Nz1E8u8hAs';
+var EPA608_OVERALL_PASS_PERCENT = 75;
+var EPA608_CORE_PASS_PERCENT = 85;
+/**************************/
+
+function upgradeEPA608Dashboard() {
+  if (EPA608_RESULTS_SHEET_ID === '1ZLGkvgLT-GIQcxjC4pu4t9XqyFgVHpVw3Nz1E8u8hAs') {
+    throw new Error('Paste your actual Results Sheet ID into EPA608_RESULTS_SHEET_ID at the top of this script.');
+  }
+
+  if (typeof QUESTION_BANK === 'undefined') {
+    throw new Error('QUESTION_BANK was not found. Keep this file in the same Apps Script project as your exam system.');
+  }
+
+  var ss = SpreadsheetApp.openById(EPA608_RESULTS_SHEET_ID);
+  var responseSheet = findEPA608ResponseSheet(ss);
+
+  if (!responseSheet) {
+    throw new Error('Could not find the Form Responses sheet. Submit at least one quiz response first.');
+  }
+
+  var results = calculateEPA608Results(responseSheet);
+  buildEPA608ResponseTallyTab(ss, results);
+  buildEPA608DashboardTab(ss, results);
+
+  Logger.log('Dashboard upgraded: ' + ss.getUrl());
+}
+
+function findEPA608ResponseSheet(ss) {
+  var sheets = ss.getSheets();
+
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].getName().indexOf('Form Responses') === 0) {
+      return sheets[i];
+    }
+  }
+
+  return null;
+}
+
+function calculateEPA608Results(responseSheet) {
+  var lastRow = responseSheet.getLastRow();
+  var lastCol = responseSheet.getLastColumn();
+
+  if (lastRow < 2) {
+    throw new Error('No responses found yet.');
+  }
+
+  var headers = responseSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var data = responseSheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+
+  var attempts = [];
+  var sectionTotals = {};
+  var questionStats = [];
+
+  for (var qIndex = 0; qIndex < QUESTION_BANK.length; qIndex++) {
+    var q = QUESTION_BANK[qIndex];
+    questionStats.push({
+      number: qIndex + 1,
+      section: q.section,
+      question: q.q,
+      correctAnswer: q.a[q.c],
+      attempts: 0,
+      correct: 0,
+      missed: 0
+    });
+
+    if (!sectionTotals[q.section]) {
+      sectionTotals[q.section] = {
+        section: q.section,
+        attempts: 0,
+        possible: 0,
+        correct: 0,
+        missed: 0
+      };
+    }
+  }
+
+  for (var r = 0; r < data.length; r++) {
+    var row = data[r];
+    var timestamp = row[0];
+    var total = 0;
+    var correct = 0;
+    var coreTotal = 0;
+    var coreCorrect = 0;
+    var sectionStats = {};
+    var missedList = [];
+
+    for (var i = 0; i < QUESTION_BANK.length; i++) {
+      var item = QUESTION_BANK[i];
+      var prefix = (i + 1) + '. [' + item.section + '] ';
+      var colIndex = findHeaderIndexByPrefix(headers, prefix);
+
+      if (colIndex === -1) {
+        continue;
+      }
+
+      var selected = String(row[colIndex]).trim();
+      var correctAnswer = item.a[item.c];
+
+      if (!sectionStats[item.section]) {
+        sectionStats[item.section] = {
+          total: 0,
+          correct: 0,
+          missed: 0
+        };
+      }
+
+      total++;
+      sectionStats[item.section].total++;
+      sectionTotals[item.section].possible++;
+      questionStats[i].attempts++;
+
+      if (item.section === 'Core') {
+        coreTotal++;
+      }
+
+      if (selected === correctAnswer) {
+        correct++;
+        sectionStats[item.section].correct++;
+        sectionTotals[item.section].correct++;
+        questionStats[i].correct++;
+
+        if (item.section === 'Core') {
+          coreCorrect++;
+        }
+      } else {
+        sectionStats[item.section].missed++;
+        sectionTotals[item.section].missed++;
+        questionStats[i].missed++;
+        missedList.push((i + 1) + ' [' + item.section + '] ' + item.q);
+      }
+    }
+
+    var overallPct = total > 0 ? roundOne((correct / total) * 100) : 0;
+    var corePct = coreTotal > 0 ? roundOne((coreCorrect / coreTotal) * 100) : 0;
+    var overallPass = overallPct >= EPA608_OVERALL_PASS_PERCENT;
+    var corePass = corePct >= EPA608_CORE_PASS_PERCENT;
+    var finalPass = overallPass && corePass;
+
+    attempts.push({
+      attemptNumber: r + 1,
+      timestamp: timestamp,
+      total: total,
+      correct: correct,
+      overallPct: overallPct,
+      coreTotal: coreTotal,
+      coreCorrect: coreCorrect,
+      corePct: corePct,
+      overallPass: overallPass,
+      corePass: corePass,
+      finalPass: finalPass,
+      sectionStats: sectionStats,
+      missedList: missedList
+    });
+  }
+
+  return {
+    attempts: attempts,
+    sectionTotals: sectionTotals,
+    questionStats: questionStats
+  };
+}
+
+function buildEPA608ResponseTallyTab(ss, results) {
+  var sh = ss.getSheetByName('Response Tally');
+
+  if (!sh) {
+    sh = ss.insertSheet('Response Tally');
+  }
+
+  sh.clear();
+
+  var headers = [
+    'Attempt #',
+    'Timestamp',
+    'Correct',
+    'Total',
+    'Overall %',
+    'Overall Pass?',
+    'Core Correct',
+    'Core Total',
+    'Core %',
+    'Core Pass?',
+    'Final Result',
+    'Missed Count',
+    'Missed Questions'
+  ];
+
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sh.getRange(1, 1, 1, headers.length)
+    .setFontWeight('bold')
+    .setBackground('#0F172A')
+    .setFontColor('#FFFFFF');
+
+  var rows = [];
+
+  for (var i = 0; i < results.attempts.length; i++) {
+    var a = results.attempts[i];
+
+    rows.push([
+      a.attemptNumber,
+      a.timestamp,
+      a.correct,
+      a.total,
+      a.overallPct,
+      a.overallPass ? 'YES' : 'NO',
+      a.coreCorrect,
+      a.coreTotal,
+      a.corePct,
+      a.corePass ? 'YES' : 'NO',
+      a.finalPass ? 'PASS - Congratulations' : 'KEEP STUDYING',
+      a.missedList.length,
+      a.missedList.join('\n')
+    ]);
+  }
+
+  if (rows.length > 0) {
+    sh.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  }
+
+  sh.setFrozenRows(1);
+  sh.setColumnWidth(1, 80);
+  sh.setColumnWidth(2, 160);
+  sh.setColumnWidth(3, 80);
+  sh.setColumnWidth(4, 80);
+  sh.setColumnWidth(5, 90);
+  sh.setColumnWidth(6, 110);
+  sh.setColumnWidth(7, 100);
+  sh.setColumnWidth(8, 90);
+  sh.setColumnWidth(9, 90);
+  sh.setColumnWidth(10, 100);
+  sh.setColumnWidth(11, 170);
+  sh.setColumnWidth(12, 90);
+  sh.setColumnWidth(13, 520);
+  sh.getRange(1, 1, Math.max(rows.length + 1, 2), headers.length).setWrap(true);
+
+  colorPassFailColumn(sh, 6, rows.length);
+  colorPassFailColumn(sh, 10, rows.length);
+  colorFinalResultColumn(sh, 11, rows.length);
+
+  if (sh.getFilter()) {
+    sh.getFilter().remove();
+  }
+
+  if (rows.length > 0) {
+    sh.getRange(1, 1, rows.length + 1, headers.length).createFilter();
+  }
+}
+
+function buildEPA608DashboardTab(ss, results) {
+  var sh = ss.getSheetByName('Dashboard');
+
+  if (!sh) {
+    sh = ss.insertSheet('Dashboard');
+  }
+
+  sh.clear();
+
+  var attempts = results.attempts;
+  var totalAttempts = attempts.length;
+  var latest = attempts[attempts.length - 1];
+
+  var passCount = 0;
+  var corePassCount = 0;
+  var overallSum = 0;
+  var coreSum = 0;
+  var bestOverall = 0;
+  var bestCore = 0;
+
+  for (var i = 0; i < attempts.length; i++) {
+    var a = attempts[i];
+
+    if (a.finalPass) {
+      passCount++;
+    }
+
+    if (a.corePass) {
+      corePassCount++;
+    }
+
+    overallSum += a.overallPct;
+    coreSum += a.corePct;
+
+    if (a.overallPct > bestOverall) {
+      bestOverall = a.overallPct;
+    }
+
+    if (a.corePct > bestCore) {
+      bestCore = a.corePct;
+    }
+  }
+
+  var avgOverall = totalAttempts > 0 ? roundOne(overallSum / totalAttempts) : 0;
+  var avgCore = totalAttempts > 0 ? roundOne(coreSum / totalAttempts) : 0;
+  var passRate = totalAttempts > 0 ? roundOne((passCount / totalAttempts) * 100) : 0;
+  var corePassRate = totalAttempts > 0 ? roundOne((corePassCount / totalAttempts) * 100) : 0;
+
+  sh.getRange('A1').setValue('EPA 608 Exam Dashboard');
+  sh.getRange('A1').setFontWeight('bold').setFontSize(18);
+
+  var kpiRows = [
+    ['Total Attempts', totalAttempts],
+    ['Latest Overall %', latest ? latest.overallPct + '%' : ''],
+    ['Latest Core %', latest ? latest.corePct + '%' : ''],
+    ['Latest Final Result', latest ? (latest.finalPass ? 'PASS - Congratulations' : 'KEEP STUDYING') : ''],
+    ['Average Overall %', avgOverall + '%'],
+    ['Average Core %', avgCore + '%'],
+    ['Best Overall %', bestOverall + '%'],
+    ['Best Core %', bestCore + '%'],
+    ['Pass Count', passCount],
+    ['Pass Rate', passRate + '%'],
+    ['Core Pass Count', corePassCount],
+    ['Core Pass Rate', corePassRate + '%'],
+    ['Overall Pass Threshold', EPA608_OVERALL_PASS_PERCENT + '%'],
+    ['Core Pass Threshold', EPA608_CORE_PASS_PERCENT + '%']
+  ];
+
+  sh.getRange(3, 1, kpiRows.length, 2).setValues(kpiRows);
+  sh.getRange(3, 1, kpiRows.length, 1).setFontWeight('bold');
+  sh.getRange(3, 1, kpiRows.length, 2).setBorder(true, true, true, true, true, true);
+
+  if (latest && latest.finalPass) {
+    sh.getRange('B6').setBackground('#D9EAD3').setFontWeight('bold');
+  } else {
+    sh.getRange('B6').setBackground('#F4CCCC').setFontWeight('bold');
+  }
+
+  sh.getRange('D1').setValue('Section Performance');
+  sh.getRange('D1').setFontWeight('bold').setFontSize(14);
+
+  var sectionHeaders = ['Section', 'Correct', 'Possible', '% Correct', 'Missed'];
+  sh.getRange(3, 4, 1, sectionHeaders.length).setValues([sectionHeaders]);
+  sh.getRange(3, 4, 1, sectionHeaders.length).setFontWeight('bold').setBackground('#0F172A').setFontColor('#FFFFFF');
+
+  var sectionRows = [];
+  var sectionOrder = ['Core', 'Type I', 'Type II', 'Type III', 'Mixed'];
+
+  for (var s = 0; s < sectionOrder.length; s++) {
+    var sec = sectionOrder[s];
+    var stat = results.sectionTotals[sec];
+
+    if (stat) {
+      var pct = stat.possible > 0 ? roundOne((stat.correct / stat.possible) * 100) : 0;
+      sectionRows.push([sec, stat.correct, stat.possible, pct + '%', stat.missed]);
+    }
+  }
+
+  if (sectionRows.length > 0) {
+    sh.getRange(4, 4, sectionRows.length, sectionHeaders.length).setValues(sectionRows);
+    sh.getRange(4, 4, sectionRows.length, sectionHeaders.length).setBorder(true, true, true, true, true, true);
+  }
+
+  sh.getRange('D12').setValue('Most Missed Questions');
+  sh.getRange('D12').setFontWeight('bold').setFontSize(14);
+
+  var missHeaders = ['#', 'Section', 'Missed', 'Attempts', 'Miss Rate', 'Question'];
+  sh.getRange(14, 4, 1, missHeaders.length).setValues([missHeaders]);
+  sh.getRange(14, 4, 1, missHeaders.length).setFontWeight('bold').setBackground('#0F172A').setFontColor('#FFFFFF');
+
+  var qStats = results.questionStats.slice();
+  qStats.sort(function(a, b) {
+    return b.missed - a.missed;
+  });
+
+  var missRows = [];
+  for (var q = 0; q < qStats.length; q++) {
+    if (qStats[q].attempts > 0 && qStats[q].missed > 0) {
+      var missRate = roundOne((qStats[q].missed / qStats[q].attempts) * 100);
+      missRows.push([qStats[q].number, qStats[q].section, qStats[q].missed, qStats[q].attempts, missRate + '%', qStats[q].question]);
+    }
+  }
+
+  if (missRows.length === 0) {
+    missRows.push(['', '', 0, totalAttempts, '0%', 'No missed questions yet.']);
+  }
+
+  sh.getRange(15, 4, missRows.length, missHeaders.length).setValues(missRows);
+  sh.getRange(15, 4, missRows.length, missHeaders.length).setWrap(true);
+
+  sh.setColumnWidth(1, 210);
+  sh.setColumnWidth(2, 160);
+  sh.setColumnWidth(4, 90);
+  sh.setColumnWidth(5, 80);
+  sh.setColumnWidth(6, 80);
+  sh.setColumnWidth(7, 90);
+  sh.setColumnWidth(8, 80);
+  sh.setColumnWidth(9, 420);
+
+  sh.getRange('A1:I40').setVerticalAlignment('top');
+
+  Logger.log('Dashboard tally complete.');
+}
+
+function colorPassFailColumn(sh, col, rowCount) {
+  if (rowCount < 1) {
+    return;
+  }
+
+  for (var i = 0; i < rowCount; i++) {
+    var cell = sh.getRange(i + 2, col);
+    var value = String(cell.getValue());
+
+    if (value === 'YES') {
+      cell.setBackground('#D9EAD3').setFontWeight('bold');
+    } else {
+      cell.setBackground('#F4CCCC').setFontWeight('bold');
+    }
+  }
+}
+
+function colorFinalResultColumn(sh, col, rowCount) {
+  if (rowCount < 1) {
+    return;
+  }
+
+  for (var i = 0; i < rowCount; i++) {
+    var cell = sh.getRange(i + 2, col);
+    var value = String(cell.getValue());
+
+    if (value.indexOf('PASS') === 0) {
+      cell.setBackground('#D9EAD3').setFontWeight('bold');
+    } else {
+      cell.setBackground('#F4CCCC').setFontWeight('bold');
+    }
+  }
+}
+
+function findHeaderIndexByPrefix(headers, prefix) {
+  for (var i = 0; i < headers.length; i++) {
+    if (String(headers[i]).indexOf(prefix) === 0) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+function roundOne(n) {
+  return Math.round(n * 10) / 10;
+}
