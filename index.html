@@ -1,412 +1,893 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EPA 608 Web Quiz System</title>
-<style>
-:root {
-  --bg:#f8fafc;
-  --card:#ffffff;
-  --navy:#0f172a;
-  --slate:#475569;
-  --border:#cbd5e1;
-  --blue:#2563eb;
-  --green:#16a34a;
-  --red:#dc2626;
-  --light-green:#dcfce7;
-  --light-red:#fee2e2;
-  --amber:#f59e0b;
-}
-* { box-sizing:border-box; }
-body {
-  margin:0;
-  font-family:Arial, Helvetica, sans-serif;
-  background:var(--bg);
-  color:var(--navy);
-}
-.app { max-width:1000px; margin:0 auto; padding:20px; }
-header {
-  background:var(--navy);
-  color:white;
-  border-radius:18px;
-  padding:22px;
-  margin-bottom:18px;
-  box-shadow:0 8px 24px rgba(15,23,42,.12);
-}
-header h1 { margin:0 0 6px; font-size:30px; }
-header p { margin:0; color:#dbeafe; }
-.mode-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
-button {
-  border:0;
-  border-radius:12px;
-  padding:11px 15px;
-  font-weight:700;
-  cursor:pointer;
-  font-size:14px;
-}
-.btn-primary { background:var(--blue); color:white; }
-.btn-secondary { background:#e2e8f0; color:var(--navy); }
-.btn-prev { background:#fca5a5; color:white; }
-.btn-next { background:#86efac; color:white; }
-.btn-success { background:var(--green); color:white; }
-.btn-danger { background:var(--red); color:white; }
-button:disabled { opacity:.45; cursor:not-allowed; }
-.stats {
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:12px;
-  margin-bottom:18px;
-}
-.stat, .card {
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:18px;
-  box-shadow:0 8px 24px rgba(15,23,42,.08);
-}
-.stat { padding:14px; }
-.stat .label { color:var(--slate); font-size:12px; text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
-.stat .value { font-weight:700; font-size:22px; }
-.card { padding:24px; }
-.section-pill {
-  display:inline-block;
-  background:#dbeafe;
-  color:#1e40af;
-  border-radius:999px;
-  padding:6px 10px;
-  font-weight:700;
-  font-size:13px;
-  margin-bottom:12px;
-}
-h2 { margin:0 0 18px; font-size:25px; line-height:1.25; }
-.answers { display:grid; gap:12px; margin-top:18px; }
-.answer {
-  border:2px solid var(--border);
-  border-radius:14px;
-  padding:14px 16px;
-  background:white;
-  cursor:pointer;
-  font-size:17px;
-  text-align:left;
-  transition:.15s ease;
-}
-.answer:hover { border-color:var(--blue); transform:translateY(-1px); }
-.answer.selected { border-color:var(--blue); background:#eff6ff; font-weight:700; }
-.nav { display:flex; gap:10px; justify-content:space-between; align-items:center; margin-top:22px; }
-.nav-left, .nav-right { display:flex; gap:10px; flex-wrap:wrap; }
-.progress-bar { height:10px; background:#e2e8f0; border-radius:999px; overflow:hidden; margin:16px 0 0; }
-.progress-fill { height:100%; background:var(--blue); width:0%; transition:width .2s ease; }
-.results { display:none; }
-.results.show { display:block; }
-.result-banner { border-radius:18px; padding:22px; margin-bottom:18px; color:white; }
-.result-banner.pass { background:var(--green); }
-.result-banner.fail { background:var(--red); }
-.result-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0; }
-.result-box { border:1px solid var(--border); border-radius:14px; padding:14px; background:white; }
-.result-box strong { display:block; font-size:22px; margin-top:4px; }
-table { width:100%; border-collapse:collapse; margin-top:14px; background:white; border-radius:12px; overflow:hidden; }
-th, td { border-bottom:1px solid var(--border); padding:10px; text-align:left; vertical-align:top; }
-th { background:var(--navy); color:white; }
-.correct-text { color:var(--green); font-weight:700; }
-.wrong-text { color:var(--red); font-weight:700; }
-.small-note { color:#dbeafe; font-size:13px; margin-top:10px; }
-@media(max-width:760px) {
-  .stats, .result-grid { grid-template-columns:repeat(2,1fr); }
-  h2 { font-size:21px; }
-  .nav { flex-direction:column; align-items:stretch; }
-  .nav-left, .nav-right { justify-content:center; }
-}
-</style>
-</head>
-<body>
-<div class="app">
-  <header>
-    <h1>EPA 608 Web Quiz System</h1>
-    <p>True exam behavior: answer questions first, then see score, explanations, and missed-question review at the end.</p>
-    <div class="mode-row">
-      <button class="btn-primary" onclick="startQuiz('all')">Start Full 60-Question Exam</button>
-      <button class="btn-secondary" onclick="startQuiz('Core')">Core Only</button>
-      <button class="btn-secondary" onclick="startQuiz('Type I')">Type I</button>
-      <button class="btn-secondary" onclick="startQuiz('Type II')">Type II</button>
-      <button class="btn-secondary" onclick="startQuiz('Type III')">Type III</button>
-    </div>
-    <div class="small-note">Passing target: 75% overall and 85% on Core.</div>
-  </header>
 
-  <section class="stats">
-    <div class="stat"><div class="label">Answered</div><div class="value" id="answeredStat">0/0</div></div>
-    <div class="stat"><div class="label">Current Section</div><div class="value" id="sectionStat">Ready</div></div>
-    <div class="stat"><div class="label">Progress</div><div class="value" id="progressStat">0%</div></div>
-    <div class="stat"><div class="label">Status</div><div class="value" id="statusStat">Start</div></div>
-  </section>
-
-  <main class="card">
-    <span class="section-pill" id="sectionLabel">Ready</span>
-    <h2 id="questionText">Choose a mode above to begin.</h2>
-    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-    <div class="answers" id="answers"></div>
-    <div class="nav">
-      <div class="nav-left">
-        <button class="btn-prev" id="prevBtn" onclick="prevQuestion()" disabled>PREV</button>
-        <button class="btn-next" id="nextBtn" onclick="nextQuestion()" disabled>NEXT</button>
-      </div>
-      <div class="nav-right">
-        <button class="btn-success" onclick="finishQuiz()">Finish / Score</button>
-        <button class="btn-danger" onclick="resetQuiz()">Reset</button>
-      </div>
-    </div>
-  </main>
-
-  <section id="results" class="results card" style="margin-top:18px;"></section>
-</div>
-
-<script>
 const QUESTION_BANK = [
-  { section:'Core', q:'When transporting cylinders containing used refrigerant, DOT requires that you:', a:['Use approved containers','Attach DOT classification tags','Use proper certified handling/transport procedures','Do all of the above'], c:3, e:'Transport questions test full compliance. If all listed safety/legal steps are true, choose all of the above.' },
-  { section:'Core', q:'What lubricant is commonly associated with ternary blends containing HCFCs?', a:['Alkylbenzene','Glycol','Ester','Castor oil'], c:2, e:'Ester oils are commonly used with many blended refrigerants because of compatibility requirements.' },
-  { section:'Core', q:'Which process cleans refrigerant for immediate reuse by oil separation and filtering?', a:['Recycling','Recovering','Reclaiming','Restoring'], c:0, e:'Recycling cleans refrigerant for reuse. Recovering only removes it. Reclaiming restores it to new-product specifications.' },
-  { section:'Core', q:'Which refrigerant contains chlorine?', a:['R-22','R-134a','R-410A','R-1234yf'], c:0, e:'R-22 is an HCFC. HCFCs contain chlorine, which is tied to ozone depletion.' },
-  { section:'Core', q:'Refrigerant cylinders should be all of the following EXCEPT:', a:['Free of rust and damage','Filled to 95% capacity','Properly labeled','Secured'], c:1, e:'Recovery cylinders should not be filled to 95%. The common safety rule is the 80% fill limit.' },
-  { section:'Core', q:'Which action violates the venting prohibition?', a:['Accidental release during timely repair','Cutting a line before evacuating the appliance','Catastrophic appliance failure','Connecting low-loss hoses'], c:1, e:'Cutting or opening a refrigerant line before proper evacuation is an illegal venting violation.' },
-  { section:'Core', q:'How should refrigerant blends generally be charged?', a:['As vapor','At very high temperatures','As liquid','The same as any refrigerant'], c:2, e:'Blends are charged as liquid to prevent fractionation, which changes the blend composition.' },
-  { section:'Core', q:'Which process returns refrigerant to new product specifications and requires chemical analysis?', a:['Recovery','Recycle','Reprocess','Reclaim'], c:3, e:'Reclaiming returns refrigerant to new-product specifications and requires chemical analysis.' },
-  { section:'Core', q:'Which refrigerant type generally has the highest ozone depletion potential?', a:['HCFCs','HFCs','CFCs','HFOs'], c:2, e:'CFCs have the highest ozone depletion potential because they contain chlorine and are very stable.' },
-  { section:'Core', q:'HFC refrigerants contain:', a:['Chlorine, fluorine, carbon','Chlorine, fluorine, hydrogen','Hydrogen, chlorine, carbon','Hydrogen, fluorine, carbon'], c:3, e:'HFC means hydrofluorocarbon: hydrogen, fluorine, and carbon. HFCs do not contain chlorine.' },
-  { section:'Core', q:'Most effective method for locating a small refrigerant leak:', a:['Standing vacuum test','Electronic/ultrasonic detector','Halide torch','Audible sound'], c:1, e:'Small leaks usually require an electronic or ultrasonic leak detector.' },
-  { section:'Core', q:'How should disposable refrigerant cylinders be discarded?', a:['Vent and trash','Recover remaining refrigerant, render useless, recycle metal','Refill and reuse','Use as recovery tanks'], c:1, e:'Recover remaining refrigerant first, then render the cylinder useless and recycle the metal.' },
-  { section:'Core', q:'What is being done in the U.S. to reduce ozone damage?', a:['Use natural gas instead of coal','Phase out CFCs/HCFCs','Incinerator emissions only','Increase AC efficiency only'], c:1, e:'EPA refrigerant policy focuses heavily on phasing out ozone-depleting CFCs and HCFCs.' },
-  { section:'Core', q:'Section 608 certification allows a technician to:', a:['Import R-22','Purchase/handle regulated refrigerants','Service MVAC only','Perform any HVAC work'], c:1, e:'Section 608 certification allows purchase and handling of regulated stationary HVAC refrigerants.' },
-  { section:'Core', q:'Which is NOT a recommended safety practice?', a:['Wear safety glasses','Wear gloves','Follow safety precautions','Stay 5 feet away from equipment'], c:3, e:'PPE and proper procedures matter. A random 5-foot distance rule is not the safety requirement.' },
-  { section:'Core', q:'If R-410A is added to an R-22 system, the mixed refrigerant should be:', a:['Vented','Recycled normally','Recovered into a separate tank','Used in another system'], c:2, e:'Mixed refrigerant is contaminated and should be recovered separately.' },
-  { section:'Core', q:'Refrigerant entering the compressor should be:', a:['Low-pressure liquid','Low-pressure vapor','High-pressure liquid','High-pressure vapor'], c:1, e:'Compressors are designed to compress vapor. Liquid entering the compressor can cause slugging.' },
-  { section:'Core', q:'The baseline gas for global warming potential is:', a:['Ammonia','Carbon dioxide','CFC-12','Propane'], c:1, e:'Carbon dioxide is the reference gas for GWP and has a GWP of 1.' },
-  { section:'Core', q:'Maximum safe fill level for many recovery cylinders:', a:['100%','95%','80%','50%'], c:2, e:'The 80% rule leaves room for refrigerant expansion.' },
-  { section:'Core', q:'Before opening a refrigeration system for service, the technician should:', a:['Vent the refrigerant','Recover the refrigerant','Add refrigerant','Bypass the thermostat'], c:1, e:'Recover refrigerant before opening the system to avoid illegal release.' },
-  { section:'Core', q:'The purpose of low-loss fittings is to:', a:['Increase refrigerant release','Reduce refrigerant released during connection/disconnection','Increase compressor speed','Clean refrigerant oil'], c:1, e:'Low-loss fittings reduce refrigerant emissions when hoses are connected or disconnected.' },
-  { section:'Core', q:'Which refrigerants have no ozone depletion potential because they contain no chlorine?', a:['CFCs','HCFCs','HFCs','All refrigerants'], c:2, e:'HFCs do not contain chlorine, so they have no ozone depletion potential.' },
-  { section:'Core', q:'Which statement best describes recovery?', a:['Cleaning refrigerant for reuse','Removing refrigerant from an appliance','Restoring refrigerant to new specifications','Destroying refrigerant'], c:1, e:'Recovery means removing refrigerant from a system and storing it externally.' },
-  { section:'Core', q:'Which statement best describes reclaiming?', a:['Removing refrigerant only','Filtering oil only','Processing refrigerant to new-product specifications','Charging as vapor'], c:2, e:'Reclaiming restores refrigerant to new-product specifications, usually by a certified reclaimer.' },
-  { section:'Core', q:'Oil stains near fittings or tubing can indicate:', a:['Possible refrigerant leak','Normal airflow','Proper evacuation','Correct superheat'], c:0, e:'Leaks often carry oil, so oil residue can point to a refrigerant leak.' },
-
-  { section:'Type I', q:'Type I certification covers primarily:', a:['Small appliances','Low-pressure chillers','Motor vehicle AC only','Industrial ammonia systems'], c:0, e:'Type I covers small appliances, generally systems with 5 pounds or less of refrigerant.' },
-  { section:'Type I', q:'A small appliance generally contains:', a:['2 lb or less','5 lb or less','10 lb or less','20 lb or less'], c:1, e:'Small appliance questions often key to the 5-pound threshold.' },
-  { section:'Type I', q:'When recovering from a small appliance with a non-operating compressor, recovery is usually from:', a:['High side only','Low side only','Both high and low sides if possible','The thermostat'], c:2, e:'If the compressor is not operating, accessing both high and low sides helps recover more completely.' },
-  { section:'Type I', q:'A passive recovery device relies on:', a:['The system compressor','Pressure difference and temperature','A vacuum pump only','Combustion heat'], c:1, e:'Passive recovery uses pressure and temperature differences rather than a powered compressor.' },
-  { section:'Type I', q:'An active recovery device uses:', a:['A pump or compressor','Only gravity','Only the appliance motor','Only a filter drier'], c:0, e:'Active recovery uses a pump or compressor to move refrigerant.' },
-  { section:'Type I', q:'Before disposing of a small appliance, refrigerant must be:', a:['Vented outside','Recovered','Mixed with air','Burned off'], c:1, e:'Refrigerant must be recovered before appliance disposal.' },
-  { section:'Type I', q:'System-dependent recovery relies on:', a:['The appliance compressor or internal pressure','A reclaim lab','A furnace blower','A condensate pump'], c:0, e:'System-dependent recovery uses the appliance compressor or the system’s internal pressure.' },
-  { section:'Type I', q:'A piercing-type access valve should generally be:', a:['Left permanently','Removed/replaced with a permanent fitting after service','Used as recovery cylinder','Installed on conduit'], c:1, e:'Temporary piercing valves can leak and should not be left as a permanent repair.' },
-  { section:'Type I', q:'Small appliance recovery is faster when:', a:['The appliance is warm','The appliance is frozen','The cylinder is overfilled','The filter is dirty'], c:0, e:'Warmer refrigerant has higher pressure and is easier to recover.' },
-  { section:'Type I', q:'Which recovery method uses the appliance compressor to assist refrigerant removal?', a:['System-dependent recovery','Passive recovery only','Reclaiming','Evacuation-only recovery'], c:0, e:'System-dependent recovery may use the appliance compressor to assist refrigerant removal.' },
-
-  { section:'Type II', q:'Type II certification covers:', a:['High-pressure and very-high-pressure appliances','Low-pressure chillers only','MVAC only','Small appliances only'], c:0, e:'Type II covers high-pressure and very-high-pressure appliances, including many residential split systems.' },
-  { section:'Type II', q:'R-410A is classified as:', a:['Low-pressure refrigerant','High-pressure refrigerant','Vacuum-only refrigerant','Non-refrigerant'], c:1, e:'R-410A operates at higher pressures than many older refrigerants.' },
-  { section:'Type II', q:'When charging zeotropic blends, charge as:', a:['Vapor only','Liquid','Either with no concern','Only through discharge line'], c:1, e:'Zeotropic blends are charged as liquid to reduce fractionation.' },
-  { section:'Type II', q:'If the outdoor condenser fan fails while compressor runs, the technician should:', a:['Let it run','Shut system down','Add refrigerant','Close all vents'], c:1, e:'A failed condenser fan can cause high head pressure and compressor damage.' },
-  { section:'Type II', q:'A swollen or leaking run capacitor should be:', a:['Ignored','Replaced','Bypassed permanently','Washed with water'], c:1, e:'A physically damaged capacitor is unsafe and should be replaced.' },
-  { section:'Type II', q:'Low airflow across the evaporator can cause:', a:['Coil freezing','Stronger compressor','No effect','Higher voltage'], c:0, e:'Low airflow can drop coil temperature enough to freeze the evaporator.' },
-  { section:'Type II', q:'A dirty condenser coil can cause:', a:['Low head pressure','High head pressure','No pressure change','Lower amps always'], c:1, e:'A dirty condenser coil restricts heat rejection and often raises head pressure.' },
-  { section:'Type II', q:'Liquid refrigerant entering the compressor can cause:', a:['Slugging','Better lubrication','Lower amp draw only','More airflow'], c:0, e:'Liquid refrigerant can damage a compressor because compressors are designed for vapor.' },
-  { section:'Type II', q:'Subcooling helps evaluate:', a:['Liquid refrigerant condition','Duct insulation only','Thermostat voltage','Fan rotation only'], c:0, e:'Subcooling helps confirm whether the liquid line contains solid liquid beyond saturation.' },
-  { section:'Type II', q:'Superheat helps evaluate:', a:['Vapor refrigerant condition','Condenser color','Breaker size','Filter type'], c:0, e:'Superheat measures vapor temperature above saturation and helps protect against liquid return.' },
-  { section:'Type II', q:'For pressure testing, use:', a:['Oxygen','Dry nitrogen with regulator','Compressed air with oil','Propane'], c:1, e:'Dry nitrogen with a regulator is used for pressure testing. Never use oxygen.' },
-  { section:'Type II', q:'Oxygen mixed with oil/refrigerant under pressure can be:', a:['Explosive','Safer','Required','A cleaning method'], c:0, e:'Oxygen can create an explosion hazard when mixed with oil or refrigerant under pressure.' },
-  { section:'Type II', q:'After a major repair, the system should be:', a:['Evacuated and leak checked','Vented briefly','Filled with air','Run open'], c:0, e:'After major repairs, leak check and evacuate before charging.' },
-  { section:'Type II', q:'A common cause of short cycling is:', a:['Low refrigerant or safety control opening','Perfect charge','Clean filter only','Open vents only'], c:0, e:'Short cycling can be caused by low charge, pressure controls, thermostat issues, or airflow problems.' },
-  { section:'Type II', q:'Restricted airflow through a dirty filter can:', a:['Freeze the evaporator coil','Increase refrigerant quality','Prevent all compressor damage','Eliminate superheat'], c:0, e:'A dirty filter can restrict airflow and cause evaporator coil freezing.' },
-
-  { section:'Type III', q:'Type III certification covers:', a:['Low-pressure appliances','Small appliances only','Motor vehicles only','Residential high-pressure only'], c:0, e:'Type III covers low-pressure appliances, such as many chillers.' },
-  { section:'Type III', q:'A common low-pressure chiller refrigerant example is:', a:['R-123','R-410A','R-22 only','R-600a only'], c:0, e:'R-123 is commonly associated with low-pressure chillers.' },
-  { section:'Type III', q:'Air/non-condensables in a low-pressure chiller usually cause:', a:['Higher pressure and poorer efficiency','Lower pressure only','Perfect operation','No change'], c:0, e:'Air and non-condensables reduce efficiency and usually raise operating pressures.' },
-  { section:'Type III', q:'A purge unit removes:', a:['Non-condensables','Compressor oil only','Liquid refrigerant only','Duct dust'], c:0, e:'Purge units remove air and other non-condensables from low-pressure systems.' },
-  { section:'Type III', q:'Excessive purge operation can indicate:', a:['Air leaks into the system','Perfect seal','Too much airflow','Clogged drain only'], c:0, e:'Frequent purge activity often indicates air is leaking into the system.' },
-  { section:'Type III', q:'Low-pressure systems can draw in air because they may operate:', a:['Below atmospheric pressure','Only above 500 psi','Only outdoors','Without refrigerant'], c:0, e:'If system pressure is below atmospheric pressure, leaks can pull air inward.' },
-  { section:'Type III', q:'Before opening a low-pressure appliance, refrigerant should be:', a:['Recovered','Vented','Mixed with air','Heated with torch'], c:0, e:'The recover-first rule applies to low-pressure equipment too.' },
-  { section:'Type III', q:'A standing vacuum test checks for:', a:['Leaks or moisture/outgassing','Compressor horsepower','Thermostat settings','Filter size'], c:0, e:'A vacuum that does not hold can indicate leaks, moisture, or outgassing.' },
-  { section:'Type III', q:'Moisture in a refrigeration system can form:', a:['Acids and ice restrictions','More refrigerant','Better oil','Higher airflow'], c:0, e:'Moisture can create acids and freeze at restrictions, causing system problems.' },
-  { section:'Type III', q:'Heating water or refrigerant can help recovery because it:', a:['Raises vapor pressure','Lowers safety','Vents refrigerant','Eliminates recovery'], c:0, e:'Raising temperature raises vapor pressure and can speed recovery.' }
+  {
+    "section": "Core",
+    "q": "When transporting cylinders containing used refrigerant, DOT requires that you:",
+    "a": [
+      "Use approved containers",
+      "Attach DOT classification tags",
+      "Use proper certified handling/transport procedures",
+      "Do all of the above"
+    ],
+    "c": 3,
+    "e": "Transport questions test full compliance. If all safety/legal steps are true, choose all of the above."
+  },
+  {
+    "section": "Core",
+    "q": "What lubricant is commonly associated with ternary blends containing HCFCs?",
+    "a": [
+      "Alkylbenzene",
+      "Glycol",
+      "Ester",
+      "Castor oil"
+    ],
+    "c": 2,
+    "e": "Ester oils are commonly used with many blends. Memory hook: blends often need ester compatibility."
+  },
+  {
+    "section": "Core",
+    "q": "Which process cleans refrigerant for immediate reuse by oil separation and filtering?",
+    "a": [
+      "Recycling",
+      "Recovering",
+      "Reclaiming",
+      "Restoring"
+    ],
+    "c": 0,
+    "e": "Recycle = clean for reuse. Recover = remove. Reclaim = restore to new-product standard."
+  },
+  {
+    "section": "Core",
+    "q": "Which refrigerant contains chlorine?",
+    "a": [
+      "R-22",
+      "R-134a",
+      "R-410A",
+      "R-1234yf"
+    ],
+    "c": 0,
+    "e": "R-22 is an HCFC. HCFCs contain chlorine and can damage ozone."
+  },
+  {
+    "section": "Core",
+    "q": "Refrigerant cylinders should be all of the following EXCEPT:",
+    "a": [
+      "Free of rust and damage",
+      "Filled to 95% capacity",
+      "Properly labeled",
+      "Secured"
+    ],
+    "c": 1,
+    "e": "The high-yield rule is the 80% fill rule, not 95%."
+  },
+  {
+    "section": "Core",
+    "q": "Which action violates the venting prohibition?",
+    "a": [
+      "Accidental release during timely repair",
+      "Cutting a line before evacuating the appliance",
+      "Catastrophic appliance failure",
+      "Connecting low-loss hoses"
+    ],
+    "c": 1,
+    "e": "Cutting/opening a refrigerant line without evacuation is illegal venting."
+  },
+  {
+    "section": "Core",
+    "q": "How should refrigerant blends generally be charged?",
+    "a": [
+      "As vapor",
+      "At very high temperatures",
+      "As liquid",
+      "The same as any refrigerant"
+    ],
+    "c": 2,
+    "e": "Blends are charged as liquid to prevent fractionation."
+  },
+  {
+    "section": "Core",
+    "q": "Which process returns refrigerant to new product specifications and requires chemical analysis?",
+    "a": [
+      "Recovery",
+      "Recycle",
+      "Reprocess",
+      "Reclaim"
+    ],
+    "c": 3,
+    "e": "Reclaiming restores refrigerant to new-product specifications."
+  },
+  {
+    "section": "Core",
+    "q": "Which refrigerant type generally has the highest ozone depletion potential?",
+    "a": [
+      "HCFCs",
+      "HFCs",
+      "CFCs",
+      "HFOs"
+    ],
+    "c": 2,
+    "e": "CFCs have the highest ODP because they contain chlorine and are very stable."
+  },
+  {
+    "section": "Core",
+    "q": "HFC refrigerants contain:",
+    "a": [
+      "Chlorine, fluorine, carbon",
+      "Chlorine, fluorine, hydrogen",
+      "Hydrogen, chlorine, carbon",
+      "Hydrogen, fluorine, carbon"
+    ],
+    "c": 3,
+    "e": "HFC = hydrofluorocarbon: hydrogen, fluorine, carbon. No chlorine."
+  },
+  {
+    "section": "Core",
+    "q": "Most effective method for locating a small refrigerant leak:",
+    "a": [
+      "Standing vacuum test",
+      "Electronic/ultrasonic detector",
+      "Halide torch",
+      "Audible sound"
+    ],
+    "c": 1,
+    "e": "Small leaks usually require electronic or ultrasonic detection."
+  },
+  {
+    "section": "Core",
+    "q": "How should disposable refrigerant cylinders be discarded?",
+    "a": [
+      "Vent and trash",
+      "Recover remaining refrigerant, render useless, recycle metal",
+      "Refill and reuse",
+      "Use as recovery tanks"
+    ],
+    "c": 1,
+    "e": "Recover, render useless, then recycle the metal."
+  },
+  {
+    "section": "Core",
+    "q": "What is being done in the U.S. to reduce ozone damage?",
+    "a": [
+      "Use natural gas instead of coal",
+      "Phase out CFCs/HCFCs",
+      "Incinerator emissions only",
+      "Increase AC efficiency only"
+    ],
+    "c": 1,
+    "e": "EPA refrigerant policy focuses heavily on phasing out ozone-depleting CFCs and HCFCs."
+  },
+  {
+    "section": "Core",
+    "q": "Section 608 certification allows a technician to:",
+    "a": [
+      "Import R-22",
+      "Purchase/handle regulated refrigerants",
+      "Service MVAC only",
+      "Perform any HVAC work"
+    ],
+    "c": 1,
+    "e": "608 allows purchase and handling of regulated stationary HVAC refrigerants."
+  },
+  {
+    "section": "Core",
+    "q": "Which is NOT a recommended safety practice?",
+    "a": [
+      "Wear safety glasses",
+      "Wear gloves",
+      "Follow safety precautions",
+      "Stay 5 feet away from equipment"
+    ],
+    "c": 3,
+    "e": "PPE and procedures matter. A random distance rule is not the requirement."
+  },
+  {
+    "section": "Core",
+    "q": "If R-410A is added to an R-22 system, the mixed refrigerant should be:",
+    "a": [
+      "Vented",
+      "Recycled normally",
+      "Recovered into a separate tank",
+      "Used in another system"
+    ],
+    "c": 2,
+    "e": "Mixed refrigerant is contaminated and must be recovered separately."
+  },
+  {
+    "section": "Core",
+    "q": "Refrigerant entering the compressor should be:",
+    "a": [
+      "Low-pressure liquid",
+      "Low-pressure vapor",
+      "High-pressure liquid",
+      "High-pressure vapor"
+    ],
+    "c": 1,
+    "e": "The compressor compresses vapor. Liquid can cause slugging."
+  },
+  {
+    "section": "Core",
+    "q": "The baseline gas for global warming potential is:",
+    "a": [
+      "Ammonia",
+      "Carbon dioxide",
+      "CFC-12",
+      "Propane"
+    ],
+    "c": 1,
+    "e": "CO2 is the GWP reference gas and has a GWP of 1."
+  },
+  {
+    "section": "Core",
+    "q": "Maximum safe fill level for many recovery cylinders:",
+    "a": [
+      "100%",
+      "95%",
+      "80%",
+      "50%"
+    ],
+    "c": 2,
+    "e": "80% leaves room for expansion."
+  },
+  {
+    "section": "Core",
+    "q": "Before opening a refrigeration system for service, the technician should:",
+    "a": [
+      "Vent the refrigerant",
+      "Recover the refrigerant",
+      "Add refrigerant",
+      "Bypass the thermostat"
+    ],
+    "c": 1,
+    "e": "Recover first. Opening a charged system can release refrigerant illegally."
+  },
+  {
+    "section": "Type I",
+    "q": "Type I certification covers primarily:",
+    "a": [
+      "Small appliances",
+      "Low-pressure chillers",
+      "Motor vehicle AC only",
+      "Industrial ammonia systems"
+    ],
+    "c": 0,
+    "e": "Type I is for small appliances, generally 5 lb or less refrigerant."
+  },
+  {
+    "section": "Type I",
+    "q": "A small appliance generally contains:",
+    "a": [
+      "2 lb or less",
+      "5 lb or less",
+      "10 lb or less",
+      "20 lb or less"
+    ],
+    "c": 1,
+    "e": "Small appliance = 5 lb or less."
+  },
+  {
+    "section": "Type I",
+    "q": "When recovering from a small appliance with a non-operating compressor, recovery is usually from:",
+    "a": [
+      "High side only",
+      "Low side only",
+      "Both high and low sides if possible",
+      "The thermostat"
+    ],
+    "c": 2,
+    "e": "With a non-operating compressor, use both sides if available."
+  },
+  {
+    "section": "Type I",
+    "q": "A passive recovery device relies on:",
+    "a": [
+      "The system compressor",
+      "Pressure difference and temperature",
+      "A vacuum pump only",
+      "Combustion heat"
+    ],
+    "c": 1,
+    "e": "Passive recovery uses pressure and temperature differences."
+  },
+  {
+    "section": "Type I",
+    "q": "An active recovery device uses:",
+    "a": [
+      "A pump or compressor",
+      "Only gravity",
+      "Only the appliance motor",
+      "Only a filter drier"
+    ],
+    "c": 0,
+    "e": "Active recovery uses a compressor or pump."
+  },
+  {
+    "section": "Type I",
+    "q": "Before disposing of a small appliance, refrigerant must be:",
+    "a": [
+      "Vented outside",
+      "Recovered",
+      "Mixed with air",
+      "Burned off"
+    ],
+    "c": 1,
+    "e": "Recover refrigerant before disposal."
+  },
+  {
+    "section": "Type I",
+    "q": "System-dependent recovery relies on:",
+    "a": [
+      "The appliance compressor or internal pressure",
+      "A reclaim lab",
+      "A furnace blower",
+      "A condensate pump"
+    ],
+    "c": 0,
+    "e": "System-dependent recovery uses the appliance compressor or internal pressure."
+  },
+  {
+    "section": "Type I",
+    "q": "A piercing-type access valve should generally be:",
+    "a": [
+      "Left permanently",
+      "Removed/replaced with a permanent fitting after service",
+      "Used as recovery cylinder",
+      "Installed on conduit"
+    ],
+    "c": 1,
+    "e": "Temporary piercing valves can leak and should not be permanent."
+  },
+  {
+    "section": "Type I",
+    "q": "Oil around tubing or fittings can indicate:",
+    "a": [
+      "Possible refrigerant leak",
+      "Normal airflow",
+      "Clean ductwork",
+      "Thermostat issue"
+    ],
+    "c": 0,
+    "e": "Leaks often carry oil, so oil stains are a leak clue."
+  },
+  {
+    "section": "Type I",
+    "q": "Small appliance recovery is faster when:",
+    "a": [
+      "The appliance is warm",
+      "The appliance is frozen",
+      "The cylinder is overfilled",
+      "The filter is dirty"
+    ],
+    "c": 0,
+    "e": "Warm refrigerant has higher pressure and is easier to recover."
+  },
+  {
+    "section": "Type II",
+    "q": "Type II certification covers:",
+    "a": [
+      "High-pressure and very-high-pressure appliances",
+      "Low-pressure chillers only",
+      "MVAC only",
+      "Small appliances only"
+    ],
+    "c": 0,
+    "e": "Type II covers high-pressure systems like most residential split systems."
+  },
+  {
+    "section": "Type II",
+    "q": "R-410A is classified as:",
+    "a": [
+      "Low-pressure refrigerant",
+      "High-pressure refrigerant",
+      "Vacuum-only refrigerant",
+      "Non-refrigerant"
+    ],
+    "c": 1,
+    "e": "R-410A operates at high pressures."
+  },
+  {
+    "section": "Type II",
+    "q": "When charging zeotropic blends, charge as:",
+    "a": [
+      "Vapor only",
+      "Liquid",
+      "Either with no concern",
+      "Only through discharge line"
+    ],
+    "c": 1,
+    "e": "Zeotropic blends are charged as liquid to reduce fractionation."
+  },
+  {
+    "section": "Type II",
+    "q": "If the outdoor condenser fan fails while compressor runs, the technician should:",
+    "a": [
+      "Let it run",
+      "Shut system down",
+      "Add refrigerant",
+      "Close all vents"
+    ],
+    "c": 1,
+    "e": "No condenser fan can cause high head pressure and compressor damage."
+  },
+  {
+    "section": "Type II",
+    "q": "A swollen or leaking run capacitor should be:",
+    "a": [
+      "Ignored",
+      "Replaced",
+      "Bypassed permanently",
+      "Washed with water"
+    ],
+    "c": 1,
+    "e": "A damaged capacitor is unsafe and should be replaced."
+  },
+  {
+    "section": "Type II",
+    "q": "Low airflow across the evaporator can cause:",
+    "a": [
+      "Coil freezing",
+      "Stronger compressor",
+      "No effect",
+      "Higher voltage"
+    ],
+    "c": 0,
+    "e": "Poor airflow can freeze the evaporator coil."
+  },
+  {
+    "section": "Type II",
+    "q": "A dirty condenser coil can cause:",
+    "a": [
+      "Low head pressure",
+      "High head pressure",
+      "No pressure change",
+      "Lower amps always"
+    ],
+    "c": 1,
+    "e": "Blocked heat rejection commonly raises head pressure."
+  },
+  {
+    "section": "Type II",
+    "q": "Liquid refrigerant entering the compressor can cause:",
+    "a": [
+      "Slugging",
+      "Better lubrication",
+      "Lower amp draw only",
+      "More airflow"
+    ],
+    "c": 0,
+    "e": "Compressors are made for vapor. Liquid can damage them."
+  },
+  {
+    "section": "Type II",
+    "q": "Subcooling helps evaluate:",
+    "a": [
+      "Liquid refrigerant condition",
+      "Duct insulation only",
+      "Thermostat voltage",
+      "Fan rotation only"
+    ],
+    "c": 0,
+    "e": "Subcooling confirms liquid quality beyond saturation."
+  },
+  {
+    "section": "Type II",
+    "q": "Superheat helps evaluate:",
+    "a": [
+      "Vapor refrigerant condition",
+      "Condenser color",
+      "Breaker size",
+      "Filter type"
+    ],
+    "c": 0,
+    "e": "Superheat measures vapor temperature above saturation."
+  },
+  {
+    "section": "Type II",
+    "q": "A common cause of short cycling is:",
+    "a": [
+      "Low refrigerant or safety control opening",
+      "Perfect charge",
+      "Clean filter only",
+      "Open vents only"
+    ],
+    "c": 0,
+    "e": "Short cycling often comes from low charge, safety controls, thermostat, or airflow issues."
+  },
+  {
+    "section": "Type II",
+    "q": "For pressure testing, use:",
+    "a": [
+      "Oxygen",
+      "Dry nitrogen with regulator",
+      "Compressed air with oil",
+      "Propane"
+    ],
+    "c": 1,
+    "e": "Use dry nitrogen with a regulator. Never oxygen."
+  },
+  {
+    "section": "Type II",
+    "q": "Oxygen mixed with oil/refrigerant under pressure can be:",
+    "a": [
+      "Explosive",
+      "Safer",
+      "Required",
+      "A cleaning method"
+    ],
+    "c": 0,
+    "e": "Never use oxygen; it can create an explosion hazard."
+  },
+  {
+    "section": "Type II",
+    "q": "After a major repair, the system should be:",
+    "a": [
+      "Evacuated and leak checked",
+      "Vented briefly",
+      "Filled with air",
+      "Run open"
+    ],
+    "c": 0,
+    "e": "Major repair requires leak checking and evacuation before charging."
+  },
+  {
+    "section": "Type II",
+    "q": "Low-loss hoses are used to:",
+    "a": [
+      "Reduce refrigerant release",
+      "Increase venting",
+      "Lower thermostat voltage",
+      "Clean drains"
+    ],
+    "c": 0,
+    "e": "Low-loss fittings reduce emissions during connection/disconnection."
+  },
+  {
+    "section": "Type III",
+    "q": "Type III certification covers:",
+    "a": [
+      "Low-pressure appliances",
+      "Small appliances only",
+      "Motor vehicles only",
+      "Residential high-pressure only"
+    ],
+    "c": 0,
+    "e": "Type III covers low-pressure appliances like many chillers."
+  },
+  {
+    "section": "Type III",
+    "q": "A common low-pressure chiller refrigerant example is:",
+    "a": [
+      "R-123",
+      "R-410A",
+      "R-22 only",
+      "R-600a only"
+    ],
+    "c": 0,
+    "e": "R-123 is a common low-pressure chiller refrigerant."
+  },
+  {
+    "section": "Type III",
+    "q": "Air/non-condensables in a low-pressure chiller usually cause:",
+    "a": [
+      "Higher pressure and poorer efficiency",
+      "Lower pressure only",
+      "Perfect operation",
+      "No change"
+    ],
+    "c": 0,
+    "e": "Non-condensables reduce efficiency and raise pressure."
+  },
+  {
+    "section": "Type III",
+    "q": "A purge unit removes:",
+    "a": [
+      "Non-condensables",
+      "Compressor oil only",
+      "Liquid refrigerant only",
+      "Duct dust"
+    ],
+    "c": 0,
+    "e": "Purge units remove air and non-condensables."
+  },
+  {
+    "section": "Type III",
+    "q": "Excessive purge operation can indicate:",
+    "a": [
+      "Air leaks into the system",
+      "Perfect seal",
+      "Too much airflow",
+      "Clogged drain only"
+    ],
+    "c": 0,
+    "e": "Frequent purge activity often means air is leaking in."
+  },
+  {
+    "section": "Type III",
+    "q": "Low-pressure systems can draw in air because they may operate:",
+    "a": [
+      "Below atmospheric pressure",
+      "Only above 500 psi",
+      "Only outdoors",
+      "Without refrigerant"
+    ],
+    "c": 0,
+    "e": "Below-atmospheric operation can pull air inward through leaks."
+  },
+  {
+    "section": "Type III",
+    "q": "Before opening a low-pressure appliance, refrigerant should be:",
+    "a": [
+      "Recovered",
+      "Vented",
+      "Mixed with air",
+      "Heated with torch"
+    ],
+    "c": 0,
+    "e": "Recover first. Do not open a charged system."
+  },
+  {
+    "section": "Type III",
+    "q": "A standing vacuum test checks for:",
+    "a": [
+      "Leaks or moisture/outgassing",
+      "Compressor horsepower",
+      "Thermostat settings",
+      "Filter size"
+    ],
+    "c": 0,
+    "e": "A vacuum that will not hold can indicate leaks or moisture/outgassing."
+  },
+  {
+    "section": "Type III",
+    "q": "Moisture in a refrigeration system can form:",
+    "a": [
+      "Acids and ice restrictions",
+      "More refrigerant",
+      "Better oil",
+      "Higher airflow"
+    ],
+    "c": 0,
+    "e": "Moisture can create acids and freeze at restrictions."
+  },
+  {
+    "section": "Type III",
+    "q": "Heating water or refrigerant can help recovery because it:",
+    "a": [
+      "Raises vapor pressure",
+      "Lowers safety",
+      "Vents refrigerant",
+      "Eliminates recovery"
+    ],
+    "c": 0,
+    "e": "Higher temperature raises vapor pressure and speeds recovery."
+  },
+  {
+    "section": "Mixed",
+    "q": "Best answer pattern for safety/legal EPA questions:",
+    "a": [
+      "Fastest method",
+      "Cheapest method",
+      "Strictest compliant method",
+      "No paperwork"
+    ],
+    "c": 2,
+    "e": "EPA questions favor the safest and most compliant answer."
+  },
+  {
+    "section": "Mixed",
+    "q": "If all choices are true safety requirements, likely answer:",
+    "a": [
+      "Only first",
+      "Only shortest",
+      "All of the above",
+      "None"
+    ],
+    "c": 2,
+    "e": "If all are true safety/legal steps, all of the above is often correct."
+  },
+  {
+    "section": "Mixed",
+    "q": "The word EXCEPT means:",
+    "a": [
+      "Find the wrong statement",
+      "Pick safest",
+      "Skip it",
+      "Pick longest"
+    ],
+    "c": 0,
+    "e": "EXCEPT asks for the one answer that does not fit."
+  },
+  {
+    "section": "Mixed",
+    "q": "Charging a blend as vapor can cause:",
+    "a": [
+      "Changed blend composition",
+      "Wiring failure",
+      "Condenser freezing always",
+      "Oil stops completely"
+    ],
+    "c": 0,
+    "e": "Vapor charging can fractionate blends."
+  },
+  {
+    "section": "Mixed",
+    "q": "Best memory hook for refrigerant processes:",
+    "a": [
+      "Recover=remove, recycle=clean, reclaim=factory restore",
+      "Recover=factory",
+      "Recycle=destroy",
+      "All identical"
+    ],
+    "c": 0,
+    "e": "Remove, clean, factory restore."
+  }
 ];
 
-const OVERALL_PASS = 75;
-const CORE_PASS = 85;
-let activeQuestions = [];
-let currentIndex = 0;
-let answers = {};
+const THEME = {
+  navy:'#0F172A', blue:'#2563EB', bg:'#F8FAFC', white:'#FFFFFF',
+  green:'#16A34A', red:'#DC2626', slate:'#475569', border:'#CBD5E1',
+  lightBlue:'#EFF6FF'
+};
 
-function startQuiz(mode) {
-  activeQuestions = mode === 'all' ? [...QUESTION_BANK] : QUESTION_BANK.filter(q => q.section === mode);
-  currentIndex = 0;
-  answers = {};
-  document.getElementById('results').classList.remove('show');
-  renderQuestion();
-  updateStats();
-}
+function createEPA608StudyDeck() {
+  const deck = SlidesApp.create('EPA 608 PASS SYSTEM - FULL GOOGLE SLIDES');
+  deck.getSlides()[0].remove();
 
-function renderQuestion() {
-  if (!activeQuestions.length) return;
-  const q = activeQuestions[currentIndex];
-  const selected = answers[currentIndex];
+  const title = blank(deck);
+  bg(title, THEME.navy);
+  txt(title, 'EPA 608 PASS SYSTEM', 55, 90, 620, 55, 36, THEME.white, true);
+  txt(title, 'Study Mode + Exam Mode | No PowerPoint hover issue', 55, 155, 620, 36, 18, '#DBEAFE', false);
 
-  document.getElementById('sectionLabel').textContent = `${q.section} • Question ${currentIndex + 1} of ${activeQuestions.length}`;
-  document.getElementById('questionText').textContent = q.q;
-  document.getElementById('progressFill').style.width = `${((currentIndex + 1) / activeQuestions.length) * 100}%`;
+  const cheat = blank(deck);
+  bg(cheat, THEME.bg);
+  header(cheat, 'Fast-Pass Cheat Sheet');
+  txt(cheat, [
+    'Recover = remove | Recycle = clean | Reclaim = factory restore',
+    'Blends = charge as liquid to prevent fractionation',
+    'CFC/HCFC = chlorine = ozone damage | HFC/HFO = no chlorine',
+    'Cylinder fill = 80% safety rule',
+    'Small appliance = 5 lb or less',
+    'Compressor takes low-pressure vapor only',
+    'CO2 = GWP baseline',
+    'EXCEPT = find the wrong statement',
+    'Safety/legal question = strictest compliant answer'
+  ].join('\n'), 55, 95, 620, 290, 16, THEME.navy, false);
 
-  const answerBox = document.getElementById('answers');
-  answerBox.innerHTML = '';
-  q.a.forEach((text, idx) => {
-    const btn = document.createElement('button');
-    btn.className = 'answer';
-    btn.textContent = `${String.fromCharCode(65 + idx)}. ${text}`;
-    btn.onclick = () => selectAnswer(idx);
+  const menu = blank(deck);
+  bg(menu, THEME.bg);
+  header(menu, 'Main Menu');
+  txt(menu, 'Use Present mode. Click an answer to reveal feedback. Feedback slide titles are neutral to avoid answer leakage.', 55, 80, 630, 45, 15, THEME.slate, false);
 
-    if (selected !== undefined && idx === selected) {
-      btn.classList.add('selected');
-    }
-    answerBox.appendChild(btn);
+  btn(title, 'START', menu, 250, 325, 200, 48, THEME.blue);
+  btn(title, 'CHEAT SHEET', cheat, 250, 385, 200, 48, THEME.slate);
+  btn(cheat, 'MAIN MENU', menu, 540, 390, 130, 36, THEME.blue);
+
+  const sections = ['Core','Type I','Type II','Type III','Mixed'];
+  const starts = {};
+  sections.forEach((sec, i) => {
+    const intro = blank(deck);
+    bg(intro, THEME.lightBlue);
+    header(intro, sec + ' Study Mode');
+    const count = QUESTION_BANK.filter(q => q.section === sec).length;
+    txt(intro, count + ' high-probability questions. Click an answer; feedback appears only after selection.', 55, 115, 620, 55, 18, THEME.navy, false);
+    btn(intro, 'MAIN MENU', menu, 55, 390, 130, 36, THEME.slate);
+    starts[sec] = intro;
   });
 
-  document.getElementById('prevBtn').disabled = currentIndex === 0;
-  document.getElementById('nextBtn').disabled = currentIndex === activeQuestions.length - 1;
-  updateStats();
+  sections.forEach((sec, i) => {
+    const x = i < 3 ? 70 + i*220 : 180 + (i-3)*240;
+    const y = i < 3 ? 150 : 230;
+    btn(menu, sec, starts[sec], x, y, 180, 54, THEME.blue);
+  });
+  btn(menu, 'CHEAT SHEET', cheat, 70, 320, 180, 42, THEME.slate);
+
+  sections.forEach(sec => buildStudySection(deck, sec, starts[sec], menu));
+
+  const examIntro = blank(deck);
+  bg(examIntro, THEME.navy);
+  txt(examIntro, 'Exam Mode', 55, 90, 600, 55, 36, THEME.white, true);
+  txt(examIntro, 'No feedback until the answer key at the end.', 55, 155, 600, 40, 18, '#E2E8F0', false);
+  btn(examIntro, 'MAIN MENU', menu, 55, 390, 130, 36, THEME.slate);
+  btn(menu, 'EXAM MODE', examIntro, 480, 320, 160, 42, THEME.red);
+  buildExamMode(deck, QUESTION_BANK, examIntro, menu);
+
+  Logger.log(deck.getUrl());
 }
 
-function selectAnswer(idx) {
-  answers[currentIndex] = idx;
-  renderQuestion();
+function buildStudySection(deck, sec, intro, menu) {
+  const items = QUESTION_BANK.filter(q => q.section === sec);
+  let prev = intro;
+  items.forEach((item, idx) => {
+    const qSlide = blank(deck);
+    bg(qSlide, THEME.bg);
+    txt(qSlide, sec + ' - Question ' + (idx+1) + ' of ' + items.length, 45, 25, 620, 28, 14, THEME.blue, true);
+    txt(qSlide, item.q, 45, 58, 620, 90, 22, THEME.navy, true);
+
+    item.a.forEach((ans, aidx) => {
+      const b = qSlide.insertShape(SlidesApp.ShapeType.ROUND_RECTANGLE, 70, 170 + aidx*58, 560, 44);
+      b.getFill().setSolidFill(THEME.white);
+      b.getLine().setWeight(1).setSolidFill(THEME.border);
+      b.getText().setText(String.fromCharCode(65+aidx) + '. ' + ans);
+      b.getText().getTextStyle().setFontSize(15).setForegroundColor(THEME.navy);
+      b.getText().getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.CENTER);
+    });
+
+    const correct = feedback(deck, true, item, menu, null);
+    const wrong = feedback(deck, false, item, menu, qSlide);
+    linkAnswers(qSlide, item, correct, wrong);
+    btn(prev, idx === 0 ? 'BEGIN STUDY' : 'NEXT', qSlide, 540, 390, 130, 36, THEME.blue);
+    prev = correct;
+  });
+  btn(prev, 'BACK TO MENU', menu, 500, 390, 160, 36, THEME.blue);
 }
 
-function prevQuestion() {
-  if (currentIndex > 0) {
-    currentIndex--;
-    renderQuestion();
-  }
+function feedback(deck, isCorrect, item, menu, retry) {
+  const s = blank(deck);
+  bg(s, isCorrect ? '#ECFDF5' : '#FEF2F2');
+  txt(s, 'Feedback', 45, 25, 620, 26, 14, THEME.slate, true);
+  txt(s, isCorrect ? 'Correct' : 'Not Quite', 55, 78, 620, 50, 34, isCorrect ? THEME.green : THEME.red, true);
+  txt(s, 'Answer: ' + String.fromCharCode(65+item.c) + '. ' + item.a[item.c], 55, 145, 620, 40, 18, THEME.navy, true);
+  txt(s, item.e, 55, 200, 620, 100, 17, THEME.navy, false);
+  btn(s, 'MAIN MENU', menu, 55, 390, 130, 36, THEME.slate);
+  if (retry) btn(s, 'TRY AGAIN', retry, 210, 390, 130, 36, THEME.red);
+  return s;
 }
 
-function nextQuestion() {
-  if (currentIndex < activeQuestions.length - 1) {
-    currentIndex++;
-    renderQuestion();
-  }
+function linkAnswers(slide, item, correct, wrong) {
+  const shapes = slide.getShapes().filter(sh => {
+    try { return /^[A-D]\. /.test(sh.getText().asString().trim()); } catch(e) { return false; }
+  });
+  shapes.forEach((sh, idx) => {
+    sh.getText().getTextStyle().setLinkSlide(idx === item.c ? correct : wrong);
+  });
 }
 
-function computeScore() {
-  let answered = 0, correct = 0, coreAnswered = 0, coreCorrect = 0;
-  const missed = [];
-  const sectionStats = {};
-
-  activeQuestions.forEach((q, idx) => {
-    if (!sectionStats[q.section]) {
-      sectionStats[q.section] = { total:0, answered:0, correct:0 };
-    }
-    sectionStats[q.section].total++;
-
-    if (answers[idx] !== undefined) {
-      answered++;
-      sectionStats[q.section].answered++;
-      if (q.section === 'Core') coreAnswered++;
-      if (answers[idx] === q.c) {
-        correct++;
-        sectionStats[q.section].correct++;
-        if (q.section === 'Core') coreCorrect++;
-      } else {
-        missed.push({ index: idx, q, selected: answers[idx] });
-      }
-    }
+function buildExamMode(deck, items, intro, menu) {
+  let prev = intro;
+  items.forEach((item, idx) => {
+    const s = blank(deck);
+    bg(s, THEME.bg);
+    txt(s, 'Exam Mode - Question ' + (idx+1) + ' of ' + items.length, 45, 25, 620, 28, 14, THEME.red, true);
+    txt(s, item.q, 45, 58, 620, 90, 22, THEME.navy, true);
+    item.a.forEach((ans, aidx) => {
+      const b = s.insertShape(SlidesApp.ShapeType.ROUND_RECTANGLE, 70, 170 + aidx*58, 560, 44);
+      b.getFill().setSolidFill(THEME.white);
+      b.getLine().setWeight(1).setSolidFill(THEME.border);
+      b.getText().setText(String.fromCharCode(65+aidx) + '. ' + ans);
+      b.getText().getTextStyle().setFontSize(15).setForegroundColor(THEME.navy);
+      b.getText().getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.CENTER);
+    });
+    btn(prev, idx === 0 ? 'START EXAM' : 'NEXT', s, 540, 390, 130, 36, THEME.red);
+    prev = s;
   });
 
-  const overallPct = answered ? Math.round((correct / answered) * 1000) / 10 : 0;
-  const corePct = coreAnswered ? Math.round((coreCorrect / coreAnswered) * 1000) / 10 : 0;
-  return { answered, correct, overallPct, coreAnswered, coreCorrect, corePct, missed, sectionStats };
+  const key = blank(deck);
+  bg(key, THEME.bg);
+  header(key, 'Exam Answer Key');
+  const lines = items.map((q, i) => (i+1) + '. ' + String.fromCharCode(65+q.c) + ' - ' + q.a[q.c]);
+  txt(key, lines.join('\n'), 55, 85, 620, 320, 9, THEME.navy, false);
+  btn(prev, 'ANSWER KEY', key, 520, 390, 150, 36, THEME.red);
+  btn(key, 'MAIN MENU', menu, 540, 390, 130, 36, THEME.blue);
 }
 
-function updateStats() {
-  const s = computeScore();
-  const progressPct = activeQuestions.length ? Math.round((s.answered / activeQuestions.length) * 100) : 0;
-  document.getElementById('answeredStat').textContent = `${s.answered}/${activeQuestions.length || 0}`;
-  document.getElementById('sectionStat').textContent = activeQuestions[currentIndex] ? activeQuestions[currentIndex].section : 'Ready';
-  document.getElementById('progressStat').textContent = `${progressPct}%`;
-  document.getElementById('statusStat').textContent = s.answered === activeQuestions.length && activeQuestions.length ? 'Ready to Score' : 'Testing';
+function blank(deck) { return deck.appendSlide(SlidesApp.PredefinedLayout.BLANK); }
+function bg(slide, color) { slide.getBackground().setSolidFill(color); }
+function header(slide, text) { txt(slide, text, 45, 30, 620, 45, 28, THEME.navy, true); }
+
+function txt(slide, text, x, y, w, h, size, color, bold) {
+  const box = slide.insertTextBox(text, x, y, w, h);
+  box.getText().getTextStyle().setFontSize(size).setForegroundColor(color).setBold(bold);
+  return box;
 }
 
-function finishQuiz() {
-  if (!activeQuestions.length) return;
-  const s = computeScore();
-  const allAnswered = s.answered === activeQuestions.length;
-  const pass = allAnswered && s.overallPct >= OVERALL_PASS && (!s.coreAnswered || s.corePct >= CORE_PASS);
-  const results = document.getElementById('results');
-  results.classList.add('show');
-
-  const sectionRows = Object.keys(s.sectionStats).map(sec => {
-    const item = s.sectionStats[sec];
-    const pct = item.answered ? Math.round((item.correct / item.answered) * 1000) / 10 : 0;
-    return `<tr><td>${sec}</td><td>${item.correct}</td><td>${item.answered}</td><td>${pct}%</td></tr>`;
-  }).join('');
-
-  results.innerHTML = `
-    <div class="result-banner ${pass ? 'pass' : 'fail'}">
-      <h2>${pass ? 'Congratulations — you passed.' : 'Great try — keep studying and practicing.'}</h2>
-      <p>${allAnswered ? 'Exam complete.' : 'Some questions were unanswered, so this is a partial score.'}</p>
-    </div>
-    <div class="result-grid">
-      <div class="result-box">Overall Score<strong>${s.overallPct}%</strong></div>
-      <div class="result-box">Core Score<strong>${s.coreAnswered ? s.corePct + '%' : 'N/A'}</strong></div>
-      <div class="result-box">Correct<strong>${s.correct}/${s.answered}</strong></div>
-      <div class="result-box">Missed<strong>${s.missed.length}</strong></div>
-    </div>
-    <h3>Section Tally</h3>
-    <table><thead><tr><th>Section</th><th>Correct</th><th>Answered</th><th>% Correct</th></tr></thead><tbody>${sectionRows}</tbody></table>
-    <h3>Answer Review</h3>
-    ${buildFullReviewTable()}
-    <h3>Missed Question Focus List</h3>
-    ${s.missed.length ? buildMissedTable(s.missed) : '<p>No missed questions. Excellent work.</p>'}
-  `;
-  results.scrollIntoView({ behavior: 'smooth' });
+function btn(slide, label, target, x, y, w, h, color) {
+  const b = slide.insertShape(SlidesApp.ShapeType.ROUND_RECTANGLE, x, y, w, h);
+  b.getFill().setSolidFill(color);
+  b.getLine().setSolidFill(color);
+  b.getText().setText(label);
+  b.getText().getTextStyle().setFontSize(12).setForegroundColor(THEME.white).setBold(true).setLinkSlide(target);
+  b.getText().getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.CENTER);
+  return b;
 }
 
-function buildFullReviewTable() {
-  const rows = activeQuestions.map((q, idx) => {
-    const selected = answers[idx];
-    const answered = selected !== undefined;
-    const correct = answered && selected === q.c;
-    const status = !answered ? 'Unanswered' : correct ? 'Correct' : 'Incorrect';
-    const statusClass = correct ? 'correct-text' : answered ? 'wrong-text' : '';
-    return `
-      <tr>
-        <td>${idx + 1}</td>
-        <td>${q.section}</td>
-        <td>${q.q}</td>
-        <td>${answered ? String.fromCharCode(65 + selected) + '. ' + q.a[selected] : '—'}</td>
-        <td>${String.fromCharCode(65 + q.c)}. ${q.a[q.c]}</td>
-        <td class="${statusClass}">${status}</td>
-        <td>${q.e}</td>
-      </tr>
-    `;
-  }).join('');
-  return `<table><thead><tr><th>#</th><th>Section</th><th>Question</th><th>Your Answer</th><th>Correct Answer</th><th>Status</th><th>Explanation</th></tr></thead><tbody>${rows}</tbody></table>`;
-}
-
-function buildMissedTable(missed) {
-  const rows = missed.map(m => `
-    <tr>
-      <td>${m.index + 1}</td>
-      <td>${m.q.section}</td>
-      <td>${m.q.q}</td>
-      <td>${String.fromCharCode(65 + m.selected)}. ${m.q.a[m.selected]}</td>
-      <td>${String.fromCharCode(65 + m.q.c)}. ${m.q.a[m.q.c]}</td>
-      <td>${m.q.e}</td>
-    </tr>
-  `).join('');
-  return `<table><thead><tr><th>#</th><th>Section</th><th>Question</th><th>Your Answer</th><th>Correct</th><th>Explanation</th></tr></thead><tbody>${rows}</tbody></table>`;
-}
-
-function resetQuiz() {
-  answers = {};
-  currentIndex = 0;
-  document.getElementById('results').classList.remove('show');
-  renderQuestion();
-}
-</script>
-</body>
-</html>
 
 
